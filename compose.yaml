@@ -1,6 +1,6 @@
 services:
   spring:
-    container_name: pse-backend
+    container_name: discord-bot-bratensosse
     build:
       context: .
       dockerfile: Dockerfile

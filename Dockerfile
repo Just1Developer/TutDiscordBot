@@ -6,7 +6,7 @@ COPY build.gradle.kts settings.gradle.kts gradlew gradlew.bat ./
 COPY gradle ./gradle
 COPY src ./src
 
-RUN chmod +x gradlew && ./gradlew clean build -x test -x spotlessJavaCheck
+RUN chmod +x gradlew && ./gradlew clean build -x test
 
 # Stage 2: Runtime image
 FROM eclipse-temurin:23-alpine

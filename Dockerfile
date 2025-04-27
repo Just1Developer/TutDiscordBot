@@ -6,13 +6,14 @@ COPY build.gradle.kts settings.gradle.kts gradlew gradlew.bat ./
 COPY gradle ./gradle
 COPY src ./src
 
-RUN chmod +x gradlew && ./gradlew clean build -x test
+RUN chmod +x gradlew && ./gradlew clean shadowJar -x test
 
 # Stage 2: Runtime image
 FROM eclipse-temurin:23-alpine
 WORKDIR /app
 
-COPY --from=builder /app/build/libs/*SNAPSHOT.jar discord.jar
+# shadowJar now produces build/libs/discord-bot-1.0-SNAPSHOT.jar (no -all)
+COPY --from=builder /app/build/libs/*.jar discord.jar
 
 # Start
 ENTRYPOINT ["java", "-jar", "discord.jar"]

@@ -1,6 +1,6 @@
 package net.justonedev.braten;
 
-import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -10,25 +10,27 @@ import java.time.LocalDateTime;
 
 public class GiveRoles extends ListenerAdapter {
     private final String discordUser;
-    private final Role moduleRole;
-    private final Role semesterRole;
 
     private static final String moduleRoleName = "Algorithmen";
-    private static final String semesterRoleName = "Algo %s";
+    private static final String semesterRoleNameFormat = "Algo %s";
+    private static final String semesterRoleName = semesterRoleNameFormat.formatted(getCurrentSemester());
 
-    public GiveRoles(JDA jda, String discordUser) {
+    public GiveRoles(String discordUser) {
         this.discordUser = discordUser;
-        var roles = jda.getRoles();
-        String semester = semesterRoleName.formatted(getCurrentSemester());
+    }
 
+    private record Roles(Role moduleRole, Role semesterRole) {}
+
+    private Roles getRoles(Guild guild) {
         Role moduleRole = null;
         Role semesterRole = null;
+        var roles = guild.getRoles();
 
         for (var role : roles) {
             if (role.getName().equals(moduleRoleName)) {
                 Main.log("Found module role: %s".formatted(role.getName()));
                 moduleRole = role;
-            } else if (role.getName().equals(semester)) {
+            } else if (role.getName().equals(semesterRoleName)) {
                 Main.log("Found semester role: %s".formatted(role.getName()));
                 semesterRole = role;
             }
@@ -38,18 +40,18 @@ public class GiveRoles extends ListenerAdapter {
             Main.log("Could not find module role, expected role of name %s".formatted(moduleRoleName));
         }
         if (semesterRole == null) {
-            Main.log("Could not find semester role, expected role of name %s".formatted(semester));
+            Main.log("Could not find semester role, expected role of name %s".formatted(semesterRoleName));
         }
 
-        this.moduleRole = moduleRole;
-        this.semesterRole = semesterRole;
+        return new Roles(moduleRole, semesterRole);
     }
 
     @Override
     public void onGuildMemberJoin(@NotNull GuildMemberJoinEvent event) {
         super.onGuildMemberJoin(event);
-        event.getGuild().addRoleToMember(event.getMember(), moduleRole).complete();
-        event.getGuild().addRoleToMember(event.getMember(), semesterRole).complete();
+        Roles roles = getRoles(event.getGuild());
+        event.getGuild().addRoleToMember(event.getMember(), roles.moduleRole()).complete();
+        event.getGuild().addRoleToMember(event.getMember(), roles.semesterRole()).complete();
 
     }
 

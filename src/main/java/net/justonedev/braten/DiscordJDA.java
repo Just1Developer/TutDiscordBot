@@ -11,7 +11,7 @@ public class DiscordJDA {
 
     public DiscordJDA(String token, String discordUser) throws InterruptedException {
         JDA jda = JDABuilder.createDefault(token).enableIntents(GatewayIntent.GUILD_MEMBERS).build().awaitReady();
-        jda.addEventListener(new GiveRoles(jda, discordUser));
+        jda.addEventListener(new GiveRoles(discordUser));
 
         Presence presence = jda.getPresence();
         presence.setActivity(Activity.watching("einem O(n!) Algorithmus zu"));

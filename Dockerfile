@@ -2,7 +2,7 @@
 FROM gradle:8-jdk-21-and-22-alpine AS builder
 WORKDIR /app
 
-COPY build.gradle settings.gradle gradlew gradlew.bat ./
+COPY build.gradle.kts settings.gradle.kts gradlew gradlew.bat ./
 COPY gradle ./gradle
 COPY src ./src
 

@@ -1,0 +1,9 @@
+services:
+  spring:
+    container_name: pse-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .credentials:/app/.credentials
+    working_dir: /app

@@ -14,7 +14,7 @@ public class DiscordJDA {
         jda.addEventListener(new GiveRoles(jda, discordUser));
 
         Presence presence = jda.getPresence();
-        presence.setActivity(Activity.watching("an O(n!) algorithm"));
+        presence.setActivity(Activity.watching("einem O(n!) Algorithmus zu"));
         presence.setStatus(OnlineStatus.ONLINE);
     }
 

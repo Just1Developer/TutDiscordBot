@@ -13,14 +13,13 @@ public class Main {
 
     public static void main(String[] args) {
         // Get Token:
-        String token = null;
         try {
             var file = Files.readAllLines(new File(".credentials").toPath());
             if (file.isEmpty()) {
                 log("No token found in .credentials file.");
                 return;
             }
-            token = file.getFirst();
+            String token = file.getFirst();
             String discordUser = file.size() > 1 ? file.get(1) : DEFAULT_DISCORD_USER;
             new DiscordJDA(token, discordUser);
         } catch (IOException e) {
@@ -31,6 +30,6 @@ public class Main {
     }
 
     public static void log(String s) {
-        System.out.printf("[%s] TML >> %s%n", DATE_LOG_FORMAT.format(LocalDateTime.now()), s);
+        System.out.printf("[%s] %s%n", DATE_LOG_FORMAT.format(LocalDateTime.now()), s);
     }
 }

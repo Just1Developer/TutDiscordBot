@@ -17,6 +17,7 @@ public class GiveRoles extends ListenerAdapter {
 
     public GiveRoles(String discordUser) {
         this.discordUser = discordUser;
+        Main.log("On the lookout for the following role names: %s | %s".formatted(moduleRoleName, semesterRoleName));
     }
 
     private record Roles(Role moduleRole, Role semesterRole) {}
@@ -28,19 +29,10 @@ public class GiveRoles extends ListenerAdapter {
 
         for (var role : roles) {
             if (role.getName().equals(moduleRoleName)) {
-                Main.log("Found module role: %s".formatted(role.getName()));
                 moduleRole = role;
             } else if (role.getName().equals(semesterRoleName)) {
-                Main.log("Found semester role: %s".formatted(role.getName()));
                 semesterRole = role;
             }
-        }
-
-        if (moduleRole == null) {
-            Main.log("Could not find module role, expected role of name %s".formatted(moduleRoleName));
-        }
-        if (semesterRole == null) {
-            Main.log("Could not find semester role, expected role of name %s".formatted(semesterRoleName));
         }
 
         return new Roles(moduleRole, semesterRole);
@@ -50,8 +42,8 @@ public class GiveRoles extends ListenerAdapter {
     public void onGuildMemberJoin(@NotNull GuildMemberJoinEvent event) {
         super.onGuildMemberJoin(event);
         Roles roles = getRoles(event.getGuild());
-        event.getGuild().addRoleToMember(event.getMember(), roles.moduleRole()).complete();
-        event.getGuild().addRoleToMember(event.getMember(), roles.semesterRole()).complete();
+        if (roles.moduleRole() != null) event.getGuild().addRoleToMember(event.getMember(), roles.moduleRole()).complete();
+        if (roles.semesterRole() != null) event.getGuild().addRoleToMember(event.getMember(), roles.semesterRole()).complete();
 
     }
 

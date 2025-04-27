@@ -5,6 +5,12 @@ plugins {
 group = "net.justonedev"
 version = "1.0-SNAPSHOT"
 
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "net.justonedev.kit.Main"
+    }
+}
+
 repositories {
     mavenCentral()
 }

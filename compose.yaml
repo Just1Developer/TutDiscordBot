@@ -5,5 +5,6 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - .credentials:/app/.credentials
+      - discord.credentials:/app/discord.credentials
+    restart: unless-stopped
     working_dir: /app

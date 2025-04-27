@@ -14,7 +14,7 @@ public class Main {
     public static void main(String[] args) {
         // Get Token:
         try {
-            var file = Files.readAllLines(new File(".credentials").toPath());
+            var file = Files.readAllLines(new File("discord.credentials").toPath());
             if (file.isEmpty()) {
                 log("No token found in .credentials file.");
                 return;

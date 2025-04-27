@@ -7,7 +7,7 @@ version = "1.0-SNAPSHOT"
 
 tasks.jar {
     manifest {
-        attributes["Main-Class"] = "net.justonedev.kit.Main"
+        attributes["Main-Class"] = "net.justonedev.braten.Main"
     }
 }
 

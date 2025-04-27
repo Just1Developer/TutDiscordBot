@@ -1,5 +1,5 @@
 services:
-  spring:
+  discord-bot:
     container_name: discord-bot-bratensosse
     build:
       context: .

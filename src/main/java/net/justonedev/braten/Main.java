@@ -3,7 +3,6 @@ package net.justonedev.braten;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -13,6 +12,7 @@ public class Main {
 
     public static void main(String[] args) {
         // Get Token:
+        System.out.println("Semester: " + GiveRoles.getCurrentSemester());
         try {
             var file = Files.readAllLines(new File("discord.credentials").toPath());
             if (file.isEmpty()) {

@@ -11,8 +11,8 @@ import java.time.LocalDateTime;
 public class GiveRoles extends ListenerAdapter {
     private final String discordUser;
 
-    private static final String moduleRoleName = "Algorithmen";
-    private static final String semesterRoleNameFormat = "Algo %s";
+    private static final String moduleRoleName = "Programmieren";
+    private static final String semesterRoleNameFormat = "Proggen %s";
     private static final String semesterRoleName = semesterRoleNameFormat.formatted(getCurrentSemester());
 
     public GiveRoles(String discordUser) {
@@ -47,7 +47,7 @@ public class GiveRoles extends ListenerAdapter {
 
     }
 
-    private static String getCurrentSemester() {
+    public static String getCurrentSemester() {
         LocalDateTime time = LocalDateTime.now();
         int month = time.getMonthValue();
         var year = time.getYear() % 2000 - (month < 4 ? 1 : 0);

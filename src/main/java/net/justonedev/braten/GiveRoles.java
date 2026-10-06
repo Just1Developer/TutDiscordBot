@@ -4,16 +4,19 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.justonedev.braten.semester.Module;
+import net.justonedev.braten.semester.Semester;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class GiveRoles extends ListenerAdapter {
     private final String discordUser;
 
-    private static final String moduleRoleName = "Programmieren";
-    private static final String semesterRoleNameFormat = "Proggen %s";
-    private static final String semesterRoleName = semesterRoleNameFormat.formatted(getCurrentSemester());
+    private static final Module module = Module.PROGRAMMING;
+    private static final String moduleRoleName = module.getSemiShortName();
+    private static final String semesterRoleName = SemesterCreator.getSemesterRoleName(module, new Semester(LocalDate.now()));
 
     public GiveRoles(String discordUser) {
         this.discordUser = discordUser;

@@ -2,6 +2,7 @@ package net.justonedev.braten;
 
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -10,9 +11,12 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.LayoutComponent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 
 import net.justonedev.braten.semester.Module;
+import net.justonedev.braten.semester.Semester;
+import net.justonedev.braten.semester.SemesterType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,7 +28,11 @@ import java.util.Map;
 public class SemesterSetup extends ListenerAdapter {
 
     private static final String MESSAGE_TITLE = "## Neues Semester erstellen";
+    private static final String MODULE_SEMESTER_KEY_FORMAT = "%s-%s";
+    private static final String OK_BUTTON_ID = "semester:create";
+    private static final String CREATE_KEY_FORMAT = OK_BUTTON_ID + "%s-%s-%s";
 
+    private static final int MAX_SEMESTERS = 3;
     private static final int SUMMER_SEMESTER_BEGIN_INCLUSIVE = 4;
     private static final int SUMMER_SEMESTER_END_INCLUSIVE = 9;
 
@@ -42,8 +50,8 @@ public class SemesterSetup extends ListenerAdapter {
         jda.getGuilds().forEach(guild -> {
             // TODO change to isProduction
             if (!DiscordJDA.isTestServer(guild)) return;
-            var command2 = guild.upsertCommand(COMMAND_NAME, "Initializes a new semester, with channels and updates")
-                    .addCheck(() -> true).complete();
+            guild.upsertCommand(COMMAND_NAME, "Initializes a new semester, with channels and updates")
+                    .addCheck(() -> true).queue();
         });
         requiredRoles = new HashMap<>();
         loadRoles();
@@ -76,43 +84,22 @@ public class SemesterSetup extends ListenerAdapter {
         if (event.getInteraction().getSelectedOptions().isEmpty()) return;
         if (!event.getMessage().getContentRaw().startsWith(MESSAGE_TITLE)) return;
 
-        switch (event.getInteraction().getId()) {
+        List<LayoutComponent> currentLayout = new ArrayList<>(event.getMessage().getComponents());
+        switch (event.getComponentId()) {
             case "setup:module":
+                handleModuleSelected(event, currentLayout);
                 break;
             case "setup:semester":
+                handleSemesterSelected(event, currentLayout);
                 break;
             case "setup:options":
+                handleOptionsSelected(event, currentLayout);
                 break;
             default:
                 event.deferEdit().queue();
                 return;
         }
-
-        List<LayoutComponent> currentLayout = new ArrayList<>(event.getMessage().getComponents());
-
-        if (event.getInteraction().getSelectedOptions().getFirst().getValue().contains("summer")) {
-            StringSelectMenu optionsSelect = StringSelectMenu.create("setup:options")
-                    .setPlaceholder("Optionen auswählen...")
-                    .addOption("Rollen überspringen", "noRoles", "Die Semester-Rolle wird nicht erstellt")
-                    .addOption("Kanäle überspringen", "noChannels", "Text- und Sprachkanäle werden nicht erstellt")
-                    .addOption("Nachricht an voriges Semester überspringen", "noMessage", "Es wird keine Switch-Nachricht ins alte Semester geschickt")
-                    .setRequiredRange(0, 3)
-                    .build();
-
-            if (currentLayout.size() < 4) {
-                currentLayout.add(2, ActionRow.of(optionsSelect));
-            } else {
-                currentLayout.set(2, ActionRow.of(optionsSelect));
-            }
-            event.editComponents(currentLayout).queue();
-        } else {
-            if (currentLayout.size() >= 3) {
-                currentLayout.remove(1);
-                event.editComponents(currentLayout).queue();
-            } else {
-                event.deferEdit().queue();
-            }
-        }
+        event.editComponents(currentLayout).queue();
     }
 
     @Override
@@ -121,59 +108,92 @@ public class SemesterSetup extends ListenerAdapter {
         if (!verifyIfAuthorizedServerCommand(event)) return;
         // Has permission.
 
-        var semesterSelectBuild = StringSelectMenu.create("setup:semester")
-                .setPlaceholder("Semester auswählen...");
-        listPossibleSemesters().forEach(semester -> {
-            semesterSelectBuild.addOption(semester.label, semester.value);
-        });
-        StringSelectMenu semesterSelect = semesterSelectBuild
-                .setRequiredRange(1, 1)
-                .build();
-
-        StringSelectMenu optionsSelect = StringSelectMenu.create("setup:options")
-                .setPlaceholder("Optionen auswählen...")
-                .addOption("Rollen überspringen", "noRoles", "Die Semester-Rolle wird nicht erstellt")
-                .addOption("Kanäle überspringen", "noChannels", "Text- und Sprachkanäle werden nicht erstellt")
-                .addOption("Nachricht an voriges Semester überspringen", "noMessage", "Es wird keine Switch-Nachricht ins alte Semester geschickt")
-                .setRequiredRange(0, 3)
-                .build();
-
-        Button createButton = Button.success("setup:create", "Erstellen");
-
         event.reply(MESSAGE_TITLE)
                 .setEphemeral(true)
-                .addComponents(
-                        ActionRow.of(moduleSelect),
-                        ActionRow.of(semesterSelect),
-                        //ActionRow.of(optionsSelect),
-                        ActionRow.of(createButton)
-                )
+                .addComponents(ActionRow.of(constructModuleSelect()))
                 .queue();
     }
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
         if (!event.getMessage().getContentRaw().startsWith(MESSAGE_TITLE)) return;
+        handleCreatePressed(event);
     }
 
     //endregion
 
     //region Setup Interaction Modify methods
 
-    private void handleModuleSelected(StringSelectInteractionEvent event) {
-
+    private void handleModuleSelected(StringSelectInteractionEvent event, List<LayoutComponent> currentLayout) {
+        String selectedModuleKey = getFirstSelectedValueOrNull(event);
+        Module module = Module.fromKey(selectedModuleKey);
+        removeMiddleElementsFromListUntilSize(currentLayout, 1, 1);
+        if (module == null) return;
+        // perhaps add logic to keep selected options if they are valid
+        currentLayout.set(0, ActionRow.of(constructModuleSelect(module)));
+        setOrAdd(currentLayout, 1, ActionRow.of(constructSemesterSelect(module)));
     }
 
-    private void handleSemesterSelected(StringSelectInteractionEvent event) {
-
+    private void handleSemesterSelected(StringSelectInteractionEvent event, List<LayoutComponent> currentLayout) {
+        String selectedSemesterKey = getFirstSelectedValueOrNull(event);
+        Semester semester = Semester.fromKey(selectedSemesterKey);
+        if (semester == null) {
+            removeMiddleElementsFromListUntilSize(currentLayout, 2, 2);
+            return;
+        }
+        Module module = Module.fromKey(selectedSemesterKey);
+        currentLayout.set(0, ActionRow.of(constructModuleSelect(module)));
+        currentLayout.set(1, ActionRow.of(constructSemesterSelect(module, semester)));
+        setOrAdd(currentLayout, 2, ActionRow.of(constructOptions(event.getGuild(), module, semester)));
+        setOrAdd(currentLayout, 3, ActionRow.of(Button.success(OK_BUTTON_ID, "Erstellen")));
     }
 
-    private void handleOptionsSelected(StringSelectInteractionEvent event) {
-
+    private void handleOptionsSelected(StringSelectInteractionEvent event, List<LayoutComponent> currentLayout) {
+        Module module = Module.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 0));
+        Semester semester = Semester.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 1));
+        CreateOptions options = CreateOptions.fromSelectedOptions(event.getInteraction().getSelectedOptions());
+        setOrAdd(currentLayout, 2, ActionRow.of(constructOptions(event.getGuild(), module, semester, options)));
     }
 
     private void handleCreatePressed(ButtonInteractionEvent event) {
+        if (event.getButton().getId() == null || !event.getButton().getId().startsWith(OK_BUTTON_ID)) return;
+        // Assume validity:
+        Module module = Module.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 0));
+        Semester semester = Semester.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 1));
+        CreateOptions options = CreateOptions.fromOptions(((StringSelectMenu) event.getMessage().getComponents().get(2).getComponents().getFirst()).getOptions());
+        System.out.println("OK Button pressed: ");
+        System.out.println(semester);
+        System.out.println(module);
+        System.out.printf("Options: Role: %s, Channels: %s, Message: %s%n", options.doCreateRole(), options.doCreateChannels(), options.doCreateMessage());
+    }
 
+    private String getFirstSelectedValueOrNull(StringSelectInteractionEvent event) {
+        var list = event.getInteraction().getSelectedOptions();
+        if (list.isEmpty() || list.getFirst() == null) return null;
+        return list.getFirst().getValue();
+    }
+
+    private String getFirstDefaultTrueOptionValue(Message message, int componentId) {
+        StringSelectMenu menu = (StringSelectMenu) message.getComponents().get(componentId).getComponents().getFirst();
+        for (SelectOption option : menu.getOptions()) {
+            if (option.isDefault()) return option.getValue();
+        }
+        return null;
+    }
+
+    private <T> void setOrAdd(List<T> list, int index, T element) {
+        if (list.size() > index) {
+            list.set(index, element);
+        } else {
+            // make it last element
+            list.add(element);
+        }
+    }
+
+    private void removeMiddleElementsFromListUntilSize(List<?> list, int size, int removalIndex) {
+        while (list.size() > size) {
+            list.remove(1);
+        }
     }
 
     //endregion
@@ -181,63 +201,117 @@ public class SemesterSetup extends ListenerAdapter {
     //region Component Construction
 
     private StringSelectMenu constructModuleSelect() {
+        return constructModuleSelect(null);
+    }
+    private StringSelectMenu constructModuleSelect(Module selectedModule) {
         var menuBuilder = StringSelectMenu.create("setup:module")
                 .setPlaceholder("Modul auswählen...")
                 .setRequiredRange(1, 1);
         for (Module module : Module.values()) {
-
+            menuBuilder.addOptions(
+                    SelectOption.of(module.getTitle(), module.getKey())
+                            .withDescription("Erstellt die Kategorie und Rollen benannt für %s".formatted(module.getShortName()))
+                            .withDefault(module.equals(selectedModule))
+            );
         }
-        return menuBuilder
-                .addOption("Programmieren", "proggen", "Erstellt die Kategorie und Rollen benannt für Proggen")
-                .addOption("Algorithmen", "algo", "Erstellt die Kategorie und Rollen benannt für Algo")
-                .addOption("Grundbegriffe der theoretischen Informatik", "gti", "Erstellt die Kategorie und Rollen benannt für GTI")
-                .addOption("Theoretische Grundlagen der Informatik", "tgi", "Erstellt die Kategorie und Rollen benannt für TGI")
-                .build();
+        return menuBuilder.build();
     }
 
-    private StringSelectMenu constructSemesterSelect(String module) {
-        if (module == null || module.isBlank()) return null;
+    private StringSelectMenu constructSemesterSelect(Module module) {
+        return constructSemesterSelect(module, null);
+    }
+    private StringSelectMenu constructSemesterSelect(Module module, Semester selectedSemester) {
+        var menuBuilder = StringSelectMenu.create("setup:semester")
+                .setPlaceholder("Semester auswählen...")
+                .setRequiredRange(1, 1);
 
+        if (module != null) {
+            menuBuilder.addOptions(
+                    listPossibleSemesters(MAX_SEMESTERS)
+                            .stream()
+                            .filter(module::isInSemester)
+                            .map(semester ->
+                                    SelectOption.of(semester.toString(),
+                                                    MODULE_SEMESTER_KEY_FORMAT.formatted(module.getKey(), semester.generateValueKey()))
+                                            .withDefault(semester.equals(selectedSemester)))
+                            .toList()
+            );
+        }
 
+        if (menuBuilder.getOptions().isEmpty()) {
+            menuBuilder.addOptions(SelectOption.of("Keine Semester gefunden :(", "failure").withDefault(true));
+            menuBuilder.setDisabled(true);
+        }
 
-        return null;
+        return menuBuilder.build();
     }
 
-    private StringSelectMenu constructOptions(Guild guild, String module, String semester) {
+    private StringSelectMenu constructOptions(Guild guild, Module module, Semester semester) {
+        return constructOptions(guild, module, semester, CreateOptions.DEFAULTS);
+    }
+    private StringSelectMenu constructOptions(Guild guild, Module module, Semester semester, CreateOptions options) {
+        var optionsSelectBuilder = StringSelectMenu.create("setup:options")
+                .setPlaceholder("Optionen auswählen...")
+                .setRequiredRange(0, 3);
 
-        return null;
+        if (!doesRoleExist(guild, module, semester)) {
+            optionsSelectBuilder.addOptions(
+                    SelectOption.of("Rolle erstellen", CreateOptions.OPTION_VALUE_CREATE_ROLE)
+                            .withDescription("Die Semester-Rolle wird erstellt")
+                            .withDefault(options.doCreateRole())
+            );
+        }
+        if (!doesChannelsExist(guild, module, semester)) {
+            optionsSelectBuilder.addOptions(
+                    SelectOption.of("Kanäle erstellen", CreateOptions.OPTION_VALUE_CREATE_CHANNELS)
+                            .withDescription("Text- und Sprachkanäle werden für das Semester erstellt")
+                            .withDefault(options.doCreateChannels())
+            );
+        }
+        optionsSelectBuilder.addOptions(
+                        SelectOption.of("Switch-Nachricht", CreateOptions.OPTION_VALUE_SEND_MESSAGE)
+                        .withDescription("Eine Wechseln-Nachricht wird an #allgemein des vorherigen Semesters geschickt")
+                        .withDefault(options.doCreateMessage())
+                );
+        return optionsSelectBuilder.build();
     }
 
     //endregion
 
     //region Semester Utils
 
-    private List<SelectedSemester> listPossibleSemesters() {
+    private List<Semester> listPossibleSemesters(int maxSemesters) {
         // List two semesters. exclude semesters that are in the past and semesters that already exist
         LocalDate currentSemester = LocalDateTime.now().toLocalDate();
-        return List.of(
-                getSemester(currentSemester),
-                getSemester(currentSemester.plusMonths(6))
-        );
+        List<Semester> semesters = new ArrayList<>();
+        for (int i = 0; i < maxSemesters; i++) {
+            Semester semester = getSemester(currentSemester.plusMonths(6L * i));
+            semesters.add(semester);
+        }
+        return semesters;
     }
 
-    private SelectedSemester getSemester(LocalDate date) {
+    private Semester getSemester(LocalDate date) {
         if (date.getMonth().getValue() >= SUMMER_SEMESTER_BEGIN_INCLUSIVE &&
                 date.getMonth().getValue() <= SUMMER_SEMESTER_END_INCLUSIVE) {
-            return new SelectedSemester("Sommersemester %04d".formatted(date.getYear()), "summer%04d".formatted(date.getYear()));
+            return new Semester(date.getYear(), SemesterType.SUMMER);
         }
         int firstYear = date.getYear();
         if (date.getMonth().getValue() < SUMMER_SEMESTER_BEGIN_INCLUSIVE) firstYear--;
-        int secondYear = (date.getYear() + 1);
-        int secondYearTrimmed = secondYear % 100;
-        return new SelectedSemester("Wintersemester %04d/%2d".formatted(firstYear, secondYearTrimmed), "winter%04d%4d".formatted(firstYear, secondYear));
+        return new Semester(firstYear, SemesterType.WINTER);
     }
-
-    private record SelectedSemester(String label, String value) { }
 
     //endregion
 
     //region Component Utils
+
+    private boolean doesRoleExist(Guild guild, Module module, Semester semester) {
+        return !guild.getRolesByName(SemesterCreator.getSemesterRoleName(module, semester), true).isEmpty();
+    }
+
+    private boolean doesChannelsExist(Guild guild, Module module, Semester semester) {
+        return !guild.getCategoriesByName(SemesterCreator.getCategoryName(module, semester), true).isEmpty();
+    }
 
     //endregion
 }

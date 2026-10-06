@@ -69,6 +69,13 @@ public class Semester {
         return WINTER_LABEL_FORMAT.formatted(startingYear, nextYear);
     }
 
+    public Semester getPreviousSemester() {
+        if (type == SemesterType.SUMMER) {
+            return new Semester(startingYear - 1, SemesterType.WINTER);
+        }
+        return new Semester(startingYear, SemesterType.SUMMER);
+    }
+
     public static Semester fromKey(String key) {
         Matcher matcher = SUMMER_KEY_REGEX.matcher(key);
         if (matcher.matches()) {

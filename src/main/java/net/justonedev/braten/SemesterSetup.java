@@ -30,7 +30,6 @@ public class SemesterSetup extends ListenerAdapter {
     private static final String MESSAGE_TITLE = "## Neues Semester erstellen";
     private static final String MODULE_SEMESTER_KEY_FORMAT = "%s-%s";
     private static final String OK_BUTTON_ID = "semester:create";
-    private static final String CREATE_KEY_FORMAT = OK_BUTTON_ID + "%s-%s-%s";
 
     private static final int MAX_SEMESTERS = 3;
     private static final int SUMMER_SEMESTER_BEGIN_INCLUSIVE = 4;
@@ -49,7 +48,7 @@ public class SemesterSetup extends ListenerAdapter {
         this.jda = jda;
         jda.getGuilds().forEach(guild -> {
             // TODO change to isProduction
-            if (!DiscordJDA.isTestServer(guild)) return;
+            if (!DiscordJDA.isListedServer(guild)) return;
             guild.upsertCommand(COMMAND_NAME, "Initializes a new semester, with channels and updates")
                     .addCheck(() -> true).queue();
         });
@@ -116,8 +115,16 @@ public class SemesterSetup extends ListenerAdapter {
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
-        if (!event.getMessage().getContentRaw().startsWith(MESSAGE_TITLE)) return;
-        handleCreatePressed(event);
+        if (event.getButton().getId() == null) return;
+
+        if(event.getMessage().getContentRaw().startsWith(MESSAGE_TITLE)
+                && event.getButton().getId().startsWith(OK_BUTTON_ID)) {
+            handleCreatePressed(event);
+        }
+        else if(event.getButton().getId().startsWith(SemesterCreator.BUTTON_SWITCH_PREFIX)) {
+            handleSwitchButtonPressed(event);
+            event.deferEdit().queue();
+        }
     }
 
     //endregion
@@ -156,15 +163,34 @@ public class SemesterSetup extends ListenerAdapter {
     }
 
     private void handleCreatePressed(ButtonInteractionEvent event) {
-        if (event.getButton().getId() == null || !event.getButton().getId().startsWith(OK_BUTTON_ID)) return;
         // Assume validity:
         Module module = Module.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 0));
         Semester semester = Semester.fromKey(getFirstDefaultTrueOptionValue(event.getMessage(), 1));
         CreateOptions options = CreateOptions.fromOptions(((StringSelectMenu) event.getMessage().getComponents().get(2).getComponents().getFirst()).getOptions());
-        System.out.println("OK Button pressed: ");
-        System.out.println(semester);
-        System.out.println(module);
-        System.out.printf("Options: Role: %s, Channels: %s, Message: %s%n", options.doCreateRole(), options.doCreateChannels(), options.doCreateMessage());
+        new SemesterCreator(event.getGuild(), module, semester).create(options);
+        List<LayoutComponent> currentLayout = new ArrayList<>(event.getMessage().getComponents());
+        currentLayout.removeLast();
+        var optionsDisabled = currentLayout.getLast().asDisabled();
+        currentLayout.removeLast();
+        currentLayout.add(optionsDisabled);
+        currentLayout.add(ActionRow.of(Button.success("success", "Semester erstellt").asDisabled()));
+        event.editComponents(currentLayout).queue();
+    }
+
+    private void handleSwitchButtonPressed(ButtonInteractionEvent event) {
+        if (event.getMember() == null) return;
+        assert event.getButton().getId() != null;
+        String sharedKey = event.getButton().getId().replace(SemesterCreator.BUTTON_SWITCH_PREFIX, "");
+        Module module = Module.fromKey(sharedKey);
+        Semester semester = Semester.fromKey(sharedKey);
+        boolean switched = SemesterCreator.switchSemester(event.getGuild(), event.getMember(), module, semester);
+        if (switched) {
+            event.reply("Yay! Du hast neue Rollen bekommen!")
+                    .setEphemeral(true).queue();
+        } else {
+            event.reply("Hoppla, etwas ist schiefgelaufen! Hast du die Rolle schon?")
+                    .setEphemeral(true).queue();
+        }
     }
 
     private String getFirstSelectedValueOrNull(StringSelectInteractionEvent event) {

@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.LayoutComponent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.justonedev.braten.semester.Module;
 import net.justonedev.braten.semester.Semester;
@@ -20,11 +21,11 @@ import java.util.List;
 public class SemesterCreator {
 
     public static final String BUTTON_SWITCH_PREFIX = "semester-switch:";
+    public static final String MESSAGE_TITLE = "## Neues Semester";
+    public static final String MESSAGE_CONTENT = "Hey! Ein neues Semester für das Modul **%s** hat angefangen und es gibt neue Channels. Wenn du diese sehen möchtest, klicke auf den Button :)";
 
     private static final int MAXIMUM_SEMESTERS_LOOKBACK = 3;
     private static final String GENERAL_CHAT_NAME = "allgemein";
-    private static final String MESSAGE_TITLE = "## Neues Semester";
-    private static final String MESSAGE_CONTENT = "Hey! Ein neues Semester für %s hat angefangen und es gibt neue Channels. Wenn du diese sehen möchtest, klicke auf den Button :)";
 
     private final Guild guild;
     private final Module module;
@@ -137,8 +138,12 @@ public class SemesterCreator {
                 MESSAGE_TITLE,
                 MESSAGE_CONTENT.formatted(module.getSemiShortName())
         )).addComponents(
-                ActionRow.of(Button.primary("%s%s-%s".formatted(BUTTON_SWITCH_PREFIX, module.getKey(), semester.generateValueKey()), "Neuem Semester beitreten"))
+                constructSwitchMessageButton(module, semester)
         ).queue();
+    }
+
+    public static LayoutComponent constructSwitchMessageButton(Module module, Semester semester) {
+        return ActionRow.of(Button.primary("%s%s-%s".formatted(BUTTON_SWITCH_PREFIX, module.getKey(), semester.generateValueKey()), "Neuem Semester beitreten"));
     }
 
     private GeneralChat findPreviousGeneralChat(Semester currentSemester) {

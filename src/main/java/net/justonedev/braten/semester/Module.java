@@ -58,4 +58,14 @@ public enum Module {
         }
         return null;
     }
+
+    public static Module fromRoleName(String roleName) {
+        roleName = roleName.split(" ")[0];
+        for (Module module : values()) {
+            if (module.getShortName().equals(roleName)) {
+                return module;
+            }
+        }
+        return null;
+    }
 }

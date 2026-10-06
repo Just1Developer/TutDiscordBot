@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.LayoutComponent;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -35,7 +36,9 @@ public class SemesterSetup extends ListenerAdapter {
     private static final int SUMMER_SEMESTER_BEGIN_INCLUSIVE = 4;
     private static final int SUMMER_SEMESTER_END_INCLUSIVE = 9;
 
-    private static final String COMMAND_NAME = "new-semester";
+    private static final String COMMAND_NAME_NEW_SEMESTER = "new-semester";
+    private static final String COMMAND_NAME_SWITCH_CMD = "switch-message";
+    private static final String SWITCH_CMD_OPTION_NAME = "switch-target";
     private static final String REQUIRED_ROLE_NAME_CONTAINS = "Tutor";
 
     private final Map<Guild, Role> requiredRoles;
@@ -49,8 +52,9 @@ public class SemesterSetup extends ListenerAdapter {
         jda.getGuilds().forEach(guild -> {
             // TODO change to isProduction
             if (!DiscordJDA.isListedServer(guild)) return;
-            guild.upsertCommand(COMMAND_NAME, "Initializes a new semester, with channels and updates")
-                    .addCheck(() -> true).queue();
+            guild.upsertCommand(COMMAND_NAME_NEW_SEMESTER, "Initializes a new semester, with channels and updates").queue();
+            guild.upsertCommand(COMMAND_NAME_SWITCH_CMD, "Initializes a new semester, with channels and updates")
+                    .addOption(OptionType.ROLE, SWITCH_CMD_OPTION_NAME, "Die Rolle für das Modul + Semester, worauf verlinkt wird").queue();
         });
         requiredRoles = new HashMap<>();
         loadRoles();
@@ -103,14 +107,34 @@ public class SemesterSetup extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-        if (!event.getName().equals(COMMAND_NAME)) return;
-        if (!verifyIfAuthorizedServerCommand(event)) return;
+        if (!verifyIfAuthorizedServerCommand(event)) {
+            event.reply("Dafür hast du keine Berechtigung :/").setEphemeral(true).queue();
+            return;
+        }
         // Has permission.
+        if (event.getName().equals(COMMAND_NAME_NEW_SEMESTER)) {
+            event.reply(MESSAGE_TITLE)
+                    .setEphemeral(true)
+                    .addComponents(ActionRow.of(constructModuleSelect()))
+                    .queue();
+            return;
+        }
+        if (event.getName().equals(COMMAND_NAME_SWITCH_CMD) && event.getOption(SWITCH_CMD_OPTION_NAME) != null) {
+            var reference = getModuleSemesterReference(event.getOption(SWITCH_CMD_OPTION_NAME).getAsRole().getName());
+            if (reference == null) {
+                event.deferReply().queue();
+                return;
+            }
+            event.reply("%s%n%s".formatted(
+                    SemesterCreator.MESSAGE_TITLE,
+                    SemesterCreator.MESSAGE_CONTENT.formatted(reference.module().getSemiShortName())
+                ))
+                    .addComponents(SemesterCreator.constructSwitchMessageButton(reference.module(), reference.semester()))
+                    .queue();
+            return;
+        }
 
-        event.reply(MESSAGE_TITLE)
-                .setEphemeral(true)
-                .addComponents(ActionRow.of(constructModuleSelect()))
-                .queue();
+        event.deferReply(true).queue();
     }
 
     @Override
@@ -338,6 +362,16 @@ public class SemesterSetup extends ListenerAdapter {
     private boolean doesChannelsExist(Guild guild, Module module, Semester semester) {
         return !guild.getCategoriesByName(SemesterCreator.getCategoryName(module, semester), true).isEmpty();
     }
+
+    private ModuleSemesterReference getModuleSemesterReference(String roleName) {
+        Module module = Module.fromRoleName(roleName);
+        if (module == null) return null;
+        Semester semester = Semester.fromRoleName(roleName);
+        if (semester == null) return null;
+        return new ModuleSemesterReference(module, semester);
+    }
+
+    private record ModuleSemesterReference(Module module, Semester semester) { }
 
     //endregion
 }

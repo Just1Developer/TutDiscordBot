@@ -88,6 +88,16 @@ public class Semester {
         return null;
     }
 
+    public static Semester fromRoleName(String roleName) {
+        roleName = roleName.contains(" ") ? roleName.split(" ")[1] : "";
+        if (roleName.matches("\\d{2}/\\d{2}")) {
+            return new Semester(2000 + Integer.parseInt(roleName.substring(0, 2)), SemesterType.WINTER);
+        } else if (roleName.matches("\\d{2}")) {
+            return new Semester(2000 + Integer.parseInt(roleName), SemesterType.SUMMER);
+        }
+        return null;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;

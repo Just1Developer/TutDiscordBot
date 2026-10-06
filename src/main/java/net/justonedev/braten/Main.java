@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class Main {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final String CREDENTIALS = (DEBUG ? "labormaus.key" : "discord.credentials");
 
     private static final DateTimeFormatter DATE_LOG_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");

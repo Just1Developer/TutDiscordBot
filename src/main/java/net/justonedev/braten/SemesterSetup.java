@@ -50,7 +50,6 @@ public class SemesterSetup extends ListenerAdapter {
     public SemesterSetup(JDA jda) {
         this.jda = jda;
         jda.getGuilds().forEach(guild -> {
-            // TODO change to isProduction
             if (!DiscordJDA.isListedServer(guild)) return;
             guild.upsertCommand(COMMAND_NAME_NEW_SEMESTER, "Initializes a new semester, with channels and updates").queue();
             guild.upsertCommand(COMMAND_NAME_SWITCH_CMD, "Initializes a new semester, with channels and updates")

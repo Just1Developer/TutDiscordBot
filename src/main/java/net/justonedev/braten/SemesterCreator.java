@@ -54,8 +54,6 @@ public class SemesterCreator {
     }
 
     private void createChannels() {
-        System.out.println("Creating channels...");
-
         var denyPermissionsEveryone = List.of(Permission.VIEW_CHANNEL, Permission.MESSAGE_MENTION_EVERYONE);
         var allowPermissionsRole = List.of(
                 Permission.VIEW_CHANNEL,
@@ -75,43 +73,64 @@ public class SemesterCreator {
         // We do complete to ensure the correct order
 
         long roleId = guild.getRolesByName(getSemesterRoleName(module, semester), false).getFirst().getIdLong();
+        long everyoneRoleId = guild.getPublicRole().getIdLong();
+        long botMemberId = guild.getSelfMember().getIdLong();
+
         Category category = guild.createCategory(getCategoryName(module, semester))
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
                 .complete();
 
         TextChannel general = guild.createTextChannel(GENERAL_CHAT_NAME, category)
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
+                .complete();
+        TextChannel announcements = guild.createTextChannel("announcements", category)
+                .addRolePermissionOverride(roleId, List.of(
+                        Permission.VIEW_CHANNEL,
+                        Permission.MESSAGE_EXT_EMOJI,
+                        Permission.MESSAGE_ADD_REACTION,
+                        Permission.MESSAGE_HISTORY
+                ), List.of(
+                        Permission.CREATE_PUBLIC_THREADS,
+                        Permission.CREATE_PRIVATE_THREADS,
+                        Permission.MESSAGE_SEND,
+                        Permission.MESSAGE_SEND_IN_THREADS,
+                        Permission.MESSAGE_SEND_POLLS
+                ))
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
+                .addRolePermissionOverride(everyoneRoleId, List.of(), List.of(Permission.VIEW_CHANNEL))
                 .complete();
         ForumChannel forumChannel = guild.createForumChannel("fragen", category)
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
                 .complete();
         TextChannel suggestions = guild.createTextChannel("tutoriums-gestaltung", category)
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
                 .complete();
         TextChannel offTopic = guild.createTextChannel("off-topic", category)
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
                 .complete();
         VoiceChannel voiceChannel = guild.createVoiceChannel("Auf eine Tasse Kaffee (VC)", category)
-                .addRolePermissionOverride(0L, List.of(), denyPermissionsEveryone)
+                .addRolePermissionOverride(everyoneRoleId, List.of(), denyPermissionsEveryone)
                 .addRolePermissionOverride(roleId, allowPermissionsRole, List.of())
-                .addMemberPermissionOverride(guild.getSelfMember().getIdLong(), allowPermissionsRole, List.of())
+                .addMemberPermissionOverride(botMemberId, allowPermissionsRole, List.of())
                 .complete();
 
-        general.getManager().setPosition(0).queue();
-        forumChannel.getManager().setPosition(1).queue();
-        suggestions.getManager().setPosition(2).queue();
-        offTopic.getManager().setPosition(3).queue();
-        voiceChannel.getManager().setPosition(4).queue();
+        int index = 0;
+        general.getManager().setPosition(index++).queue();
+        announcements.getManager().setPosition(index++).queue();
+        forumChannel.getManager().setPosition(index++).queue();
+        suggestions.getManager().setPosition(index++).queue();
+        offTopic.getManager().setPosition(index++).queue();
+        voiceChannel.getManager().setPosition(index).queue();
 
         List<Category> tutorCategories = guild.getCategoriesByName("Tutoren", true);
         if (!tutorCategories.isEmpty()) {
@@ -121,7 +140,6 @@ public class SemesterCreator {
     }
 
     private void createMessage() {
-        System.out.println("Creating message...");
         GeneralChat currentLastChat = findPreviousGeneralChat(semester);
         if (currentLastChat == null) return;
         GeneralChat beforeLastChat = findPreviousGeneralChat(currentLastChat.semester());

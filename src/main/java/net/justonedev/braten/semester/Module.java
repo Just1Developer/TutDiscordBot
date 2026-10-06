@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public enum Module {
-    PROGRAMMING("programming", "Programmieren", "Proggen", SemesterType.values()),
+    PROGRAMMING("programming", "Programmieren I", "Proggen", SemesterType.values()),
     ALGORITHMS("algorithms", "Algorithmen", "Algo", SemesterType.SUMMER),
     GTI("gti", "Grundlagen der theoretischen Informatik", "GTI", SemesterType.WINTER),
     TGI("tgi", "Theoretische Grundlagen der Informatik", "TGI", SemesterType.WINTER);

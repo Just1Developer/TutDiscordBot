@@ -7,16 +7,20 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class Main {
+    private static final boolean DEBUG = true;
+    private static final String CREDENTIALS = (DEBUG ? "labormaus" : "") + ".key";
+
     private static final DateTimeFormatter DATE_LOG_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final String DEFAULT_DISCORD_USER = "justonedeveloper";
 
     public static void main(String[] args) {
         // Get Token:
         System.out.println("Semester: " + GiveRoles.getCurrentSemester());
+        System.out.println("Loading " + CREDENTIALS);
         try {
-            var file = Files.readAllLines(new File("discord.credentials").toPath());
+            var file = Files.readAllLines(new File(CREDENTIALS).toPath());
             if (file.isEmpty()) {
-                log("No token found in .credentials file.");
+                log("No token found in discord.credentials file.");
                 return;
             }
             String token = file.getFirst();

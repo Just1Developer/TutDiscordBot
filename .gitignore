@@ -42,4 +42,5 @@ bin/
 .DS_Store
 
 # JDA stuff
-discord.credentials
+*.credentials
+*.key
